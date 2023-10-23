@@ -41,6 +41,7 @@ func init() {
 	initConfig()
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(fileCmd)
+	rootCmd.AddCommand(fileTextCmd)
 }
 
 func Execute() {

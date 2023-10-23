@@ -8,7 +8,13 @@ import (
 	"strings"
 )
 
+type ProjectFile struct {
+	file    *gitlab.File
+	project *gitlab.Project
+}
+
 var verbose int
+var search *string
 
 var fileCmd = &cobra.Command{
 	Use:   "file name",
@@ -24,11 +30,19 @@ var fileCmd = &cobra.Command{
 
 func init() {
 	fileCmd.Flags().CountVarP(&verbose, "verbose", "v", "Make the operation more talkative")
+	search = fileCmd.Flags().String("search", "", "Search criteria")
 }
 
 func fileExecute(_ *cobra.Command, args []string) {
+	ch := make(chan ProjectFile)
+	go fileSearch(args[0], search, nil, verbose, ch)
+	for pj := range ch {
+		fmt.Printf("✅  Found %s in %s\n", pj.file.FileName, pj.project.NameWithNamespace)
+	}
+}
+
+func fileSearch(fileName string, search *string, branches []string, verbose int, channel chan ProjectFile) {
 	client := internal.SafeNewClient()
-	fileName := args[0]
 	if verbose > 0 {
 		fmt.Printf("URL Encoded filename is %s\n", gitlab.PathEscape(fileName))
 	}
@@ -38,6 +52,7 @@ func fileExecute(_ *cobra.Command, args []string) {
 		projects, resp, err := client.Projects.ListProjects(&gitlab.ListProjectsOptions{
 			WithProgrammingLanguage: gitlab.String("Python"),
 			ListOptions:             pagOpts,
+			Search:                  search,
 		})
 		cobra.CheckErr(err)
 
@@ -53,12 +68,23 @@ func fileExecute(_ *cobra.Command, args []string) {
 				continue
 			}
 
-			if verbose > 1 {
-				fmt.Printf("Looking in %s\n", proj.NameWithNamespace)
+			if branches == nil {
+				branches = []string{proj.DefaultBranch}
 			}
-			if searchFile(client, proj, fileName) {
-				fmt.Printf("✅  Found %s in %s\n", fileName, proj.NameWithNamespace)
+
+			for _, branch := range branches {
+				if verbose > 1 {
+					fmt.Printf("Looking in %s@%s\n", proj.NameWithNamespace, branch)
+				}
+				file, _, _ := client.RepositoryFiles.GetFile(
+					proj.ID, fileName,
+					&gitlab.GetFileOptions{Ref: gitlab.String(branch)},
+				)
+				if file != nil {
+					channel <- ProjectFile{file, proj}
+				}
 			}
+
 		}
 
 		if resp.NextPage == 0 {
@@ -66,10 +92,6 @@ func fileExecute(_ *cobra.Command, args []string) {
 		}
 		pagOpts.Page = resp.NextPage
 	}
-}
 
-func searchFile(client *gitlab.Client, project *gitlab.Project, fileName string) bool {
-	file, _, _ := client.RepositoryFiles.GetFile(project.ID, fileName, &gitlab.GetFileOptions{Ref: gitlab.String(project.DefaultBranch)})
-
-	return file != nil
+	close(channel)
 }
