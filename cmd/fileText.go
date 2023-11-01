@@ -30,7 +30,7 @@ func fileTextExecute(cmd *cobra.Command, args []string) {
 		if err != nil {
 			continue
 		}
-		contentStr := string(content[:])
+		contentStr := string(content)
 
 		if strings.Contains(contentStr, searchedText) {
 			fmt.Printf("✅  Found %s in file %s in %s @%s\n", searchedText, pj.file.FileName, pj.project.NameWithNamespace, pj.file.Ref)

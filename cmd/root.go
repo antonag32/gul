@@ -28,6 +28,7 @@ func initConfig() {
 
 	viper.SetDefault("token", "your-gitlab-token")
 	viper.SetDefault("url", "https://gitlab.com")
+	viper.SetDefault("ssh.domain", "git.vauxoo.com")
 
 	if err := viper.ReadInConfig(); err != nil {
 		var configFileNotFoundError viper.ConfigFileNotFoundError
@@ -42,6 +43,7 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(fileCmd)
 	rootCmd.AddCommand(fileTextCmd)
+	rootCmd.AddCommand(pushCmd)
 }
 
 func Execute() {
