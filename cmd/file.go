@@ -13,29 +13,21 @@ type ProjectFile struct {
 	project *gitlab.Project
 }
 
-var verbose int
-var search *string
-
 var fileCmd = &cobra.Command{
-	Use:   "file name",
-	Short: "Search for a file across repositories",
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 1 {
-			return fmt.Errorf("1 argument is required but %d were provided", len(args))
-		}
-		return nil
-	},
-	Run: fileExecute,
+	Use:                "file name",
+	Short:              "Search for a file across repositories",
+	Args:               cobra.ExactArgs(1),
+	Run:                fileExecute,
+	DisableFlagParsing: true,
 }
 
-func init() {
-	fileCmd.Flags().CountVarP(&verbose, "verbose", "v", "Make the operation more talkative")
-	search = fileCmd.Flags().String("search", "", "Search criteria")
-}
+func fileExecute(cmd *cobra.Command, args []string) {
+	var verbose = cmd.Flags().CountP("verbose", "v", "Make the operation more talkative")
+	var search = cmd.Flags().String("search", "", "Search criteria")
+	cobra.CheckErr(cmd.Flags().Parse(args))
 
-func fileExecute(_ *cobra.Command, args []string) {
 	ch := make(chan ProjectFile)
-	go fileSearch(args[0], search, nil, verbose, ch)
+	go fileSearch(args[0], search, nil, *verbose, ch)
 	for pj := range ch {
 		fmt.Printf("✅  Found %s in %s\n", pj.file.FileName, pj.project.NameWithNamespace)
 	}
